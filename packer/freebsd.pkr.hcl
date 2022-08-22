@@ -1,6 +1,7 @@
 variable "image_date" { type = string }
 variable "gcp_project" { type = string }
 variable "task_name" { type = string }
+variable "bucket" { type = string }
 
 variable "prefix" {
   type = string

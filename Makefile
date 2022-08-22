@@ -14,25 +14,15 @@ pre-commit:
 	  packer/linux_debian.pkr.hcl
 	packer validate \
 	  -var gcp_project=pg-ci-images-dev \
+	  -var-file="packer/netbsd.pkrvars.hcl" \
 	  -var "image_date=$(image_date)" \
-	  -var "image_name=openbsd-9-vanilla" \
+	  -var "task_name=openbsd-9-vanilla" \
 	  -var "bucket=somebucket" \
-	  packer/bsd/openbsd_vanilla.pkr.hcl
+	  packer/netbsd_openbsd.pkr.hcl
 	packer validate \
 	  -var gcp_project=pg-ci-images-dev \
+	  -var-file="packer/openbsd.pkrvars.hcl" \
 	  -var "image_date=$(image_date)" \
-	  -var "image_name=openbsd-9-postgres" \
+	  -var "task_name=openbsd-9-vanilla" \
 	  -var "bucket=somebucket" \
-	  packer/bsd/openbsd_postgres.pkr.hcl
-	packer validate \
-	  -var gcp_project=pg-ci-images-dev \
-	  -var "image_date=$(image_date)" \
-	  -var "image_name=netbsd-9-vanilla" \
-	  -var "bucket=somebucket" \
-	  packer/bsd/netbsd_vanilla.pkr.hcl
-	packer validate \
-	  -var gcp_project=pg-ci-images-dev \
-	  -var "image_date=$(image_date)" \
-	  -var "image_name=netbsd-9-postgres" \
-	  -var "bucket=somebucket" \
-	  packer/bsd/netbsd_postgres.pkr.hcl
+	  packer/netbsd_openbsd.pkr.hcl
