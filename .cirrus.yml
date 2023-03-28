@@ -17,6 +17,16 @@ env:
   # GCP_REGION
   # GCP_REPO
 
+# To use same date for the all tasks, download date artifact from
+# create_date task and use it. Another method is used at the
+# Windows docker-builder task because $CIRRUS_ENV can't
+# be updated and this method is not working on PowerShell.
+export_date_unix_shell: &export_date_unix_shell
+  export_date_script: |
+    ARTIFACT_URL=https://api.cirrus-ci.com/v1/artifact/build/${CIRRUS_BUILD_ID}/create_date/date/date.txt
+    curl -fsSLO ${ARTIFACT_URL}
+    DATE=$(cat date.txt)
+    echo "DATE=${DATE}" | tee -a ${CIRRUS_ENV}
 
 # central definition for the tasks interacting with gcp
 
@@ -78,6 +88,24 @@ gcp_docker_auth_win: &gcp_docker_auth_win
   gcp_docker_auth_script:
     - gcloud auth configure-docker --quiet %GCP_REGION%-docker.pkg.dev
 
+# To export date and to use this date on other tasks, have a minimal task
+# that all others depend on.
+task:
+  name: create_date
+
+  container:
+    image: debian:latest
+    cpu: 0.5
+    memory: 256Mi
+
+  export_date_script: |
+    DATE=$(date --utc +'%Y-%m-%dt%H-%M-%S')
+    echo "${DATE}" | tee -a date.txt
+
+  date_artifacts:
+    path: "date.txt"
+    type: text/plain
+
 
 task:
   matrix:
@@ -116,9 +144,7 @@ task:
   info_script:
     - packer --version
 
-  export_date_script: |
-    DATE=$(date --utc +'%Y-%m-%dt%H-%M-%S')
-    echo "DATE=${DATE}" | tee -a $CIRRUS_ENV
+  <<: *export_date_unix_shell
 
   build_image_script: |
     packer build \
@@ -178,9 +204,7 @@ task:
   info_script:
     - packer --version
 
-  export_date_script: |
-    DATE=$(date --utc +'%Y-%m-%dt%H-%M-%S')
-    echo "DATE=${DATE}" | tee -a $CIRRUS_ENV
+  <<: *export_date_unix_shell
 
   build_image_script: |
     export PACKER_LOG=1
@@ -275,6 +299,8 @@ task:
     - docker buildx use multibuilder
     - docker buildx inspect --bootstrap
 
+  <<: *export_date_unix_shell
+
   # XXX: would be nicer to split into multiple steps, so that e.g. build vs
   # upload time are visible
   #
@@ -287,8 +313,6 @@ task:
   #
   # Disabled linux/arm64, fails currently due to reasons outside of our control
   build_script: |
-    DATE=$(date --utc +'%Y-%m-%dt%H-%M-%S')
-
     docker buildx build \
       --platform linux/amd64 \
       --build-arg DATE=$DATE \
@@ -330,7 +354,9 @@ docker_builder:
     # switched to the powershell
     - ps: |
         echo "gcp_password = `"$(gcloud auth print-access-token)`"" | Out-File -Append -Encoding ASCII ${Env:PKRVARFILE}
-        $DATE=[datetime]::Utcnow.Tostring("yyyy-MM-dd't'HH-mm-ss")
+        $ARTIFACT_URL="https://api.cirrus-ci.com/v1/artifact/build/${Env:CIRRUS_BUILD_ID}/create_date/date/date.txt"
+        curl.exe -fsSLO ${ARTIFACT_URL}
+        $DATE=$(cat date.txt)
 
         packer build `
           -only "*.${Env:CIRRUS_TASK_NAME}" `
