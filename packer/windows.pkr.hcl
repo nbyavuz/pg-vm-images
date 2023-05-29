@@ -1,5 +1,7 @@
+variable "cirrus_build_id" { type = string }
 variable "task_name" { type = string }
 variable "image_date" { type = string }
+variable "vcpkg_cache_dir" { type = string }
 
 variable "build_type" {
   type = string
@@ -77,7 +79,9 @@ source "googlecompute" "windows" {
   winrm_use_ssl           = true
   winrm_timeout           = "10m"
   state_timeout           = "10m"
+  # skip_create_image       = true
   metadata = {
+    #windows-startup-script-cmd = "net user ${var.packer_username} \"${var.packer_user_password}\" /add /y & wmic UserAccount where Name=\"${var.packer_username}\" set PasswordExpires=False & net localgroup administrators ${var.packer_username} /add & powershell Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0 & powershell Start-Service sshd & powershell Set-Service -Name sshd -StartupType 'Automatic' & powershell New-NetFirewallRule -Name 'OpenSSH-Server-In-TCP' -DisplayName 'OpenSSH Server (sshd)' -Enabled True -Direction Inbound -Protocol TCP -Action Allow -LocalPort 22 & powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \"Set-ExecutionPolicy -ExecutionPolicy bypass -Force\""
     windows-startup-script-cmd = "winrm quickconfig -quiet & net user /add packer_user & net localgroup administrators packer_user /add & winrm set winrm/config/service/auth @{Basic=\"true\"}"
   }
 }
@@ -171,12 +175,6 @@ build {
       "[Environment]::SetEnvironmentVariable('PATH',  \"C:\\strawberry\\${local.perl_version}\\perl\\bin;\" + [Environment]::GetEnvironmentVariable('PATH', 'Machine'), 'Machine')",
     ]
   }
-
-  # install openssl
-  provisioner "powershell" {
-    execute_command = var.execute_command
-    script = "scripts/windows_install_openssl.ps1"
-  }
   ### end of base installations
 
   ### mingw installations
@@ -215,15 +213,44 @@ build {
     only = local.only.vs_2019
   }
 
+  # provisioner "powershell" {
+  #   execute_command = var.execute_command
+  #   script = "scripts/windows_install_pg_deps.ps1"
+  #   only = local.only.vs_2019
+  # }
+
   provisioner "powershell" {
     execute_command = var.execute_command
-    script = "scripts/windows_install_pg_deps.ps1"
+    script = "scripts/windows_install_vs_2019.ps1"
+    only = local.only.vs_2019
+  }
+
+  # provisioner "file" {
+  #   source = "vcpkg/binary_cache/vcpkg_binary_cache.zip"
+  #   destination = "c:/vcpkg_binary_cache.zip"
+  #   only = local.only.vs_2019
+  # }
+
+  # install packages
+  provisioner "powershell" {
+    execute_command = var.execute_command
+    environment_vars = ["CIRRUS_BUILD_ID=${var.cirrus_build_id}"]
+    script = "scripts/windows_install_packages.ps1"
     only = local.only.vs_2019
   }
 
   provisioner "powershell" {
     execute_command = var.execute_command
-    script = "scripts/windows_install_vs_2019.ps1"
+    inline = [
+      "7z.exe a c:/vcpkg/vcpkg_binary_cache.zip c:/vcpkg/binary_cache/*"
+    ]
+    only = local.only.vs_2019
+  }
+
+  provisioner "file" {
+    source = "c:/vcpkg/vcpkg_binary_cache.zip"
+    destination = "${var.vcpkg_cache_dir}/../vcpkg_cache.zip"
+    direction = "download"
     only = local.only.vs_2019
   }
   ### end of vs-2019 installations
