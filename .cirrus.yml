@@ -85,23 +85,23 @@ task:
       env:
         PACKERFILE: packer/freebsd.pkr.hcl
 
-    - env:
-        PACKERFILE: packer/linux_debian.pkr.hcl
-        SCRIPTS: scripts/linux_debian_*
+    # - env:
+    #     PACKERFILE: packer/linux_debian.pkr.hcl
+    #     SCRIPTS: scripts/linux_debian_*
 
-      matrix:
-        - name: bullseye
-        - name: sid
-        - name: sid-newkernel
-        - name: sid-newkernel-uring
+    #   matrix:
+    #     - name: bullseye
+    #     - name: sid
+    #     - name: sid-newkernel
+    #     - name: sid-newkernel-uring
 
-    - env:
-        PACKERFILE: packer/windows.pkr.hcl
-        SCRIPTS: scripts/windows*
+    # - env:
+    #     PACKERFILE: packer/windows.pkr.hcl
+    #     SCRIPTS: scripts/windows*
 
-      matrix:
-        - name: windows-ci-vs-2019
-        - name: windows-ci-mingw64
+    #   matrix:
+    #     - name: windows-ci-vs-2019
+    #     - name: windows-ci-mingw64
 
   container:
     dockerfile: docker/linux_debian_packer
@@ -143,303 +143,303 @@ task:
       pg-ci-${CIRRUS_TASK_NAME}-${DATE}
 
 
-task:
-  matrix:
-    - env:
-        PACKERFILE: packer/netbsd_openbsd.pkr.hcl
-        PKRVARFILE: packer/openbsd.pkrvars.hcl
-        VERSION: 7-2
-      matrix:
-        - name: openbsd-vanilla
-        - name: openbsd-postgres
-          depends_on:
-            - openbsd-vanilla
+# task:
+#   matrix:
+#     - env:
+#         PACKERFILE: packer/netbsd_openbsd.pkr.hcl
+#         PKRVARFILE: packer/openbsd.pkrvars.hcl
+#         VERSION: 7-2
+#       matrix:
+#         - name: openbsd-vanilla
+#         - name: openbsd-postgres
+#           depends_on:
+#             - openbsd-vanilla
 
-    - env:
-        PACKERFILE: packer/netbsd_openbsd.pkr.hcl
-        PKRVARFILE: packer/netbsd.pkrvars.hcl
-        VERSION: 9-3
-      matrix:
-        - name: netbsd-vanilla
-        - name: netbsd-postgres
-          depends_on:
-            - netbsd-vanilla
+#     - env:
+#         PACKERFILE: packer/netbsd_openbsd.pkr.hcl
+#         PKRVARFILE: packer/netbsd.pkrvars.hcl
+#         VERSION: 9-3
+#       matrix:
+#         - name: netbsd-vanilla
+#         - name: netbsd-postgres
+#           depends_on:
+#             - netbsd-vanilla
 
-  container:
-    dockerfile: docker/linux_debian_packer
-    cpu: 2
-    memory: 4G
+#   container:
+#     dockerfile: docker/linux_debian_packer
+#     cpu: 2
+#     memory: 4G
 
-  skip: $CIRRUS_LAST_GREEN_CHANGE != '' && $CIRRUS_CRON != 'regular-rebuild' && !changesInclude('.cirrus.yml', 'docker/linux_debian_packer', 'files/bsd/*', 'scripts/bsd/*', $PACKERFILE, $PKRVARFILE)
-  auto_cancellation: false
+#   skip: $CIRRUS_LAST_GREEN_CHANGE != '' && $CIRRUS_CRON != 'regular-rebuild' && !changesInclude('.cirrus.yml', 'docker/linux_debian_packer', 'files/bsd/*', 'scripts/bsd/*', $PACKERFILE, $PKRVARFILE)
+#   auto_cancellation: false
 
-  <<: *gcp_auth_unix
+#   <<: *gcp_auth_unix
 
-  info_script:
-    - packer --version
+#   info_script:
+#     - packer --version
 
-  export_date_script: |
-    DATE=$(date --utc +'%Y-%m-%dt%H-%M-%S')
-    echo "DATE=${DATE}" | tee -a $CIRRUS_ENV
+#   export_date_script: |
+#     DATE=$(date --utc +'%Y-%m-%dt%H-%M-%S')
+#     echo "DATE=${DATE}" | tee -a $CIRRUS_ENV
 
-  build_image_script: |
-    export PACKER_LOG=1
+#   build_image_script: |
+#     export PACKER_LOG=1
 
-    packer build \
-      -only "*.${CIRRUS_TASK_NAME}" \
-      -timestamp-ui \
-      -force \
-      -var-file="${PKRVARFILE}" \
-      -var "version=${VERSION}" \
-      -var "image_date=$DATE" \
-      -var "image_name=${CIRRUS_TASK_NAME}" \
-      -var "bucket=$BUCKET" \
-      -var gcp_project=$GCP_PROJECT \
-      "$PACKERFILE"
+#     packer build \
+#       -only "*.${CIRRUS_TASK_NAME}" \
+#       -timestamp-ui \
+#       -force \
+#       -var-file="${PKRVARFILE}" \
+#       -var "version=${VERSION}" \
+#       -var "image_date=$DATE" \
+#       -var "image_name=${CIRRUS_TASK_NAME}" \
+#       -var "bucket=$BUCKET" \
+#       -var gcp_project=$GCP_PROJECT \
+#       "$PACKERFILE"
 
-  make_image_public_script: |
-    gcloud compute images add-iam-policy-binding \
-      --project "$GCP_PROJECT" \
-      --member=allAuthenticatedUsers \
-      --role=roles/compute.imageUser \
-      pg-ci-${CIRRUS_TASK_NAME}-${DATE}
+#   make_image_public_script: |
+#     gcloud compute images add-iam-policy-binding \
+#       --project "$GCP_PROJECT" \
+#       --member=allAuthenticatedUsers \
+#       --role=roles/compute.imageUser \
+#       pg-ci-${CIRRUS_TASK_NAME}-${DATE}
 
-    gcloud compute images update \
-      --project "$GCP_PROJECT" \
-      --family pg-ci-${CIRRUS_TASK_NAME}-${VERSION} \
-      pg-ci-${CIRRUS_TASK_NAME}-${DATE}
-
-
-# Clean up old images regularly - after a while the individually small cost
-# starts adding up
-#
-# Leave old images around for two weeks, to allow recreating CI failures
-# precisely.
-#
-# Only do so after a run successfully creating all images, to avoid deleting
-# all image versions when image creation has failed for a few days.
-task:
-  name: cleanup-old
-
-  container:
-    dockerfile: docker/linux_debian_packer
-    cpu: 0.5
-    memory: 256Mi
-
-  depends_on:
-    - freebsd-13
-    - netbsd-postgres
-    - openbsd-postgres
-    - bullseye
-    - sid
-    - sid-newkernel
-    - sid-newkernel-uring
-    - windows-ci-vs-2019
-    - windows-ci-mingw64
-
-  <<: *gcp_auth_unix
-
-  cleanup_vm_images_script:
-    ./gcp_delete_old_images.py
-
-  # FIXME: deletion doesn't work 100% reliable, because this doesn't correctly
-  # deal with multi-arch containers (gcloud shows the individual architecture
-  # specific containers without tags, even if the manifest has tags)
-  cleanup_container_images_script: |
-    gcloud artifacts docker images list \
-      --include-tags \
-      --format 'value[separator=@](package,version)' \
-      --filter='createTime < -P14d AND -tags:*' \
-      $GCP_REPO | \
-        xargs --verbose --no-run-if-empty -n 1 gcloud artifacts docker images delete || true
+#     gcloud compute images update \
+#       --project "$GCP_PROJECT" \
+#       --family pg-ci-${CIRRUS_TASK_NAME}-${VERSION} \
+#       pg-ci-${CIRRUS_TASK_NAME}-${DATE}
 
 
-task:
-  name: build-containers-linux
+# # Clean up old images regularly - after a while the individually small cost
+# # starts adding up
+# #
+# # Leave old images around for two weeks, to allow recreating CI failures
+# # precisely.
+# #
+# # Only do so after a run successfully creating all images, to avoid deleting
+# # all image versions when image creation has failed for a few days.
+# task:
+#   name: cleanup-old
 
-  compute_engine_instance:
-    image_project: cirrus-images
-    image: family/docker-builder
-    platform: linux
-    cpu: 2
-    memory: 8G
-  env:
-    IMAGE: linux_debian_bullseye_ci
+#   container:
+#     dockerfile: docker/linux_debian_packer
+#     cpu: 0.5
+#     memory: 256Mi
 
-  skip: $CIRRUS_LAST_GREEN_CHANGE != '' && $CIRRUS_CRON != 'regular-rebuild' && !changesInclude('.cirrus.yml', 'scripts/linux_debian*', 'docker/linux_debian_bullseye_ci')
+#   depends_on:
+#     - freebsd-13
+#     - netbsd-postgres
+#     - openbsd-postgres
+#     - bullseye
+#     - sid
+#     - sid-newkernel
+#     - sid-newkernel-uring
+#     - windows-ci-vs-2019
+#     - windows-ci-mingw64
 
-  <<: *gcp_docker_auth_unix
+#   <<: *gcp_auth_unix
 
-  multibuilder_script:
-    - docker buildx create --name multibuilder
-    - docker buildx use multibuilder
-    - docker buildx inspect --bootstrap
+#   cleanup_vm_images_script:
+#     ./gcp_delete_old_images.py
 
-  # XXX: would be nicer to split into multiple steps, so that e.g. build vs
-  # upload time are visible
-  #
-  # XXX: would be nice to test images before tagging them as available
-  #
-  # FIXME: disabled caching for now, there doesn't appear to be a good builtin
-  # way of regenerating cached layers regularly.
-  #    --cache-from type=registry,ref=$GCP_REPO/$IMAGE \
-  #    --cache-to=type=inline \
-  #
-  # Disabled linux/arm64, fails currently due to reasons outside of our control
-  build_script: |
-    DATE=$(date --utc +'%Y-%m-%dt%H-%M-%S')
-
-    docker buildx build \
-      --platform linux/amd64 \
-      --build-arg DATE=$DATE \
-      --build-arg IMAGE_NAME=$IMAGE \
-      --tag $GCP_REPO/$IMAGE:latest \
-      --tag $GCP_REPO/$IMAGE:$DATE \
-      -f docker/$IMAGE \
-      --push \
-      .
-
-    docker buildx imagetools inspect $GCP_REPO/$IMAGE:latest
+#   # FIXME: deletion doesn't work 100% reliable, because this doesn't correctly
+#   # deal with multi-arch containers (gcloud shows the individual architecture
+#   # specific containers without tags, even if the manifest has tags)
+#   cleanup_container_images_script: |
+#     gcloud artifacts docker images list \
+#       --include-tags \
+#       --format 'value[separator=@](package,version)' \
+#       --filter='createTime < -P14d AND -tags:*' \
+#       $GCP_REPO | \
+#         xargs --verbose --no-run-if-empty -n 1 gcloud artifacts docker images delete || true
 
 
-docker_builder:
-  matrix:
-    - name: windows_ci_vs_2019
-    - name: windows_ci_mingw64
+# task:
+#   name: build-containers-linux
 
-  env:
-    PACKERFILE: packer/windows.pkr.hcl
-    PKRVARFILE: packer/windows_container.pkrvars.hcl
-    BUILD_TYPE: docker
+#   compute_engine_instance:
+#     image_project: cirrus-images
+#     image: family/docker-builder
+#     platform: linux
+#     cpu: 2
+#     memory: 8G
+#   env:
+#     IMAGE: linux_debian_bullseye_ci
 
-  platform: windows
-  os_version: 2019
+#   skip: $CIRRUS_LAST_GREEN_CHANGE != '' && $CIRRUS_CRON != 'regular-rebuild' && !changesInclude('.cirrus.yml', 'scripts/linux_debian*', 'docker/linux_debian_bullseye_ci')
 
-  skip: $CIRRUS_LAST_GREEN_CHANGE != '' && $CIRRUS_CRON != 'regular-rebuild' && !changesInclude('.cirrus.yml', $PACKERFILE, 'scripts/windows*')
+#   <<: *gcp_docker_auth_unix
 
-  <<: *gcp_docker_auth_win
+#   multibuilder_script:
+#     - docker buildx create --name multibuilder
+#     - docker buildx use multibuilder
+#     - docker buildx inspect --bootstrap
 
-  install_packer_script: |
-    choco install packer -y
+#   # XXX: would be nicer to split into multiple steps, so that e.g. build vs
+#   # upload time are visible
+#   #
+#   # XXX: would be nice to test images before tagging them as available
+#   #
+#   # FIXME: disabled caching for now, there doesn't appear to be a good builtin
+#   # way of regenerating cached layers regularly.
+#   #    --cache-from type=registry,ref=$GCP_REPO/$IMAGE \
+#   #    --cache-to=type=inline \
+#   #
+#   # Disabled linux/arm64, fails currently due to reasons outside of our control
+#   build_script: |
+#     DATE=$(date --utc +'%Y-%m-%dt%H-%M-%S')
 
-  info_script: |
-    packer --version
+#     docker buildx build \
+#       --platform linux/amd64 \
+#       --build-arg DATE=$DATE \
+#       --build-arg IMAGE_NAME=$IMAGE \
+#       --tag $GCP_REPO/$IMAGE:latest \
+#       --tag $GCP_REPO/$IMAGE:$DATE \
+#       -f docker/$IMAGE \
+#       --push \
+#       .
 
-  build_script:
-    # cmd '^' line continuation didn't work
-    # switched to the powershell
-    - ps: |
-        echo "gcp_password = `"$(gcloud auth print-access-token)`"" | Out-File -Append -Encoding ASCII ${Env:PKRVARFILE}
-        $DATE=[datetime]::Utcnow.Tostring("yyyy-MM-dd't'HH-mm-ss")
-
-        packer build `
-          -only "*.${Env:CIRRUS_TASK_NAME}" `
-          -timestamp-ui `
-          -force `
-          -var-file="${Env:PKRVARFILE}" `
-          -var "task_name=${Env:CIRRUS_TASK_NAME}" `
-          -var "image_date=${DATE}" `
-          -var "docker_repo=${Env:GCP_REPO}" `
-          -var "docker_server=${Env:GCP_REGION}-docker.pkg.dev" `
-          -var "build_type=$Env:BUILD_TYPE" `
-          "$Env:PACKERFILE"
-
-
-task:
-  name: test-linux-container-amd64
-  depends_on:
-    - build-containers-linux
-  container:
-    image: $GCP_REPO/linux_debian_bullseye_ci:latest
-  test_script:
-    - uname -a
-    - xsltproc --version
-    - env
-
-# Disabled linux/arm64, fails currently due to reasons outside of our control
-#task:
-#  name: test-linux-container-arm64
-#  depends_on:
-#    - build-containers-linux
-#  arm_container:
-#    image: $GCP_REPO/linux_debian_bullseye_ci:latest
-#  test_script:
-#    - uname -a
-#    - xsltproc --version
+#     docker buildx imagetools inspect $GCP_REPO/$IMAGE:latest
 
 
-task:
-  matrix:
-    - name: test-netbsd
-      env:
-        IMAGE_NAME: pg-ci-netbsd-postgres-9-3
-        PLATFORM: netbsd
+# docker_builder:
+#   matrix:
+#     - name: windows_ci_vs_2019
+#     - name: windows_ci_mingw64
 
-    - name: test-openbsd
-      env:
-        IMAGE_NAME: pg-ci-openbsd-postgres-7-2
-        PLATFORM: openbsd
+#   env:
+#     PACKERFILE: packer/windows.pkr.hcl
+#     PKRVARFILE: packer/windows_container.pkrvars.hcl
+#     BUILD_TYPE: docker
 
-  depends_on:
-    - ${PLATFORM}-postgres
+#   platform: windows
+#   os_version: 2019
 
-  compute_engine_instance:
-    image_project: $GCP_PROJECT
-    image: family/${IMAGE_NAME}
-    platform: ${PLATFORM}
+#   skip: $CIRRUS_LAST_GREEN_CHANGE != '' && $CIRRUS_CRON != 'regular-rebuild' && !changesInclude('.cirrus.yml', $PACKERFILE, 'scripts/windows*')
 
-  test_script:
-    - uname -a
-    - env
+#   <<: *gcp_docker_auth_win
 
+#   install_packer_script: |
+#     choco install packer -y
 
-task:
-  matrix:
-    - name: test-windows-vs-2019
-      depends_on:
-        - windows-ci-vs-2019
-      compute_engine_instance:
-        image_project: $GCP_PROJECT
-        image: family/pg-ci-windows-ci-vs-2019
-        platform: windows
+#   info_script: |
+#     packer --version
 
-    - name: test-windows-vs-2019-amd64-container
-      depends_on:
-        - windows_ci_vs_2019
-      windows_container:
-        image: $GCP_REPO/windows_ci_vs_2019:latest
+#   build_script:
+#     # cmd '^' line continuation didn't work
+#     # switched to the powershell
+#     - ps: |
+#         echo "gcp_password = `"$(gcloud auth print-access-token)`"" | Out-File -Append -Encoding ASCII ${Env:PKRVARFILE}
+#         $DATE=[datetime]::Utcnow.Tostring("yyyy-MM-dd't'HH-mm-ss")
 
-  test_script:
-    - ver
-    - set
-    - where perl
-    - perl --version
-    - python --version
-    - vcvarsall x64
-    - bison --version
-    - flex --version
+#         packer build `
+#           -only "*.${Env:CIRRUS_TASK_NAME}" `
+#           -timestamp-ui `
+#           -force `
+#           -var-file="${Env:PKRVARFILE}" `
+#           -var "task_name=${Env:CIRRUS_TASK_NAME}" `
+#           -var "image_date=${DATE}" `
+#           -var "docker_repo=${Env:GCP_REPO}" `
+#           -var "docker_server=${Env:GCP_REGION}-docker.pkg.dev" `
+#           -var "build_type=$Env:BUILD_TYPE" `
+#           "$Env:PACKERFILE"
 
 
-task:
-  matrix:
-    - name: test-windows-mingw64
-      depends_on:
-        - windows-ci-mingw64
-      compute_engine_instance:
-        image_project: $GCP_PROJECT
-        image: family/pg-ci-windows-ci-mingw64
-        platform: windows
+# task:
+#   name: test-linux-container-amd64
+#   depends_on:
+#     - build-containers-linux
+#   container:
+#     image: $GCP_REPO/linux_debian_bullseye_ci:latest
+#   test_script:
+#     - uname -a
+#     - xsltproc --version
+#     - env
 
-    - name: test-windows-mingw64-amd64-container
-      depends_on:
-        - windows_ci_mingw64
-      windows_container:
-        image: $GCP_REPO/windows_ci_mingw64:latest
+# # Disabled linux/arm64, fails currently due to reasons outside of our control
+# #task:
+# #  name: test-linux-container-arm64
+# #  depends_on:
+# #    - build-containers-linux
+# #  arm_container:
+# #    image: $GCP_REPO/linux_debian_bullseye_ci:latest
+# #  test_script:
+# #    - uname -a
+# #    - xsltproc --version
 
-  test_script:
-    - ver
-    - set
-    - C:\msys64\usr\bin\bash.exe -lc 'where perl'
-    - C:\msys64\usr\bin\bash.exe -lc 'perl --version'
-    - C:\msys64\usr\bin\bash.exe -lc 'bison --version'
-    - C:\msys64\usr\bin\bash.exe -lc 'flex --version'
+
+# task:
+#   matrix:
+#     - name: test-netbsd
+#       env:
+#         IMAGE_NAME: pg-ci-netbsd-postgres-9-3
+#         PLATFORM: netbsd
+
+#     - name: test-openbsd
+#       env:
+#         IMAGE_NAME: pg-ci-openbsd-postgres-7-2
+#         PLATFORM: openbsd
+
+#   depends_on:
+#     - ${PLATFORM}-postgres
+
+#   compute_engine_instance:
+#     image_project: $GCP_PROJECT
+#     image: family/${IMAGE_NAME}
+#     platform: ${PLATFORM}
+
+#   test_script:
+#     - uname -a
+#     - env
+
+
+# task:
+#   matrix:
+#     - name: test-windows-vs-2019
+#       depends_on:
+#         - windows-ci-vs-2019
+#       compute_engine_instance:
+#         image_project: $GCP_PROJECT
+#         image: family/pg-ci-windows-ci-vs-2019
+#         platform: windows
+
+#     - name: test-windows-vs-2019-amd64-container
+#       depends_on:
+#         - windows_ci_vs_2019
+#       windows_container:
+#         image: $GCP_REPO/windows_ci_vs_2019:latest
+
+#   test_script:
+#     - ver
+#     - set
+#     - where perl
+#     - perl --version
+#     - python --version
+#     - vcvarsall x64
+#     - bison --version
+#     - flex --version
+
+
+# task:
+#   matrix:
+#     - name: test-windows-mingw64
+#       depends_on:
+#         - windows-ci-mingw64
+#       compute_engine_instance:
+#         image_project: $GCP_PROJECT
+#         image: family/pg-ci-windows-ci-mingw64
+#         platform: windows
+
+#     - name: test-windows-mingw64-amd64-container
+#       depends_on:
+#         - windows_ci_mingw64
+#       windows_container:
+#         image: $GCP_REPO/windows_ci_mingw64:latest
+
+#   test_script:
+#     - ver
+#     - set
+#     - C:\msys64\usr\bin\bash.exe -lc 'where perl'
+#     - C:\msys64\usr\bin\bash.exe -lc 'perl --version'
+#     - C:\msys64\usr\bin\bash.exe -lc 'bison --version'
+#     - C:\msys64\usr\bin\bash.exe -lc 'flex --version'
