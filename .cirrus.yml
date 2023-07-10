@@ -1,6 +1,6 @@
 # Due to the dependency on encrypted variables, this will only work in a
 # specific repo
-only_if: $CIRRUS_REPO_OWNER == 'anarazel' && $CIRRUS_REPO_NAME == 'pg-vm-images'
+# only_if: $CIRRUS_REPO_OWNER == 'anarazel' && $CIRRUS_REPO_NAME == 'pg-vm-images'
 
 env:
   CIRRUS_LOG_TIMESTAMP: true
@@ -24,9 +24,9 @@ env:
 gcp_auth: &gcp_auth
   env:
     # image-builder@pg-ci-images-dev.iam.gserviceaccount.com
-    GAC_DEV: ENCRYPTED[40c920fc0112638b1ada05929628f296b630db4252100f14ae966effc5bcd840d6cedeb3cbd96bc14ebbf35695bd43b1]
+    GAC_DEV: ENCRYPTED[f5d73e4c47da389f1a64ee423efe34016e13d84126123f4440546cd19f038c90368daab3ef51845ca9360b5df5c50518]
     # image-builder@pg-ci-images.iam.gserviceaccount.com
-    GAC_MAIN: ENCRYPTED[0529fb776190443002786f8e413f98d09ca79170c5a1c5cf66dd076fb232f778c9c13679b2e9f697eeede64033c1a3dd]
+    GAC_MAIN: ENCRYPTED[f5d73e4c47da389f1a64ee423efe34016e13d84126123f4440546cd19f038c90368daab3ef51845ca9360b5df5c50518]
 
 # gcp auth for unixoid systems
 gcp_auth_unix: &gcp_auth_unix
