@@ -32,8 +32,8 @@ def delete_old_images():
     # get all old images, including the newest image in a
     # family (will be skipped below)
     old_images_cmd = base_cmd + ['list', '--format', 'object value(name)',
-                                 '--no-standard-images', '--filter',
-                                 'creationTimestamp < -P2W']
+                                 '--no-standard-images', '--show-deprecated',
+                                 '--filter', 'creationTimestamp < -P2W']
     res = subprocess.run(old_images_cmd, capture_output=True,
                          check=True, text=True)
     old_images = res.stdout.split()
