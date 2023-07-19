@@ -103,7 +103,7 @@ def delete_old_docker_images():
     get_images_cmd = base_cmd + ['list',
                                  '--include-tags', '--format',
                                  'json(package,version,tags)',
-                                 '--filter', 'createTime < -P2W',
+                                 '--filter', 'createTime < -P1s',
                                  os.environ['GCP_REPO']]
     res = subprocess.run(get_images_cmd, capture_output=True,
                          check=True, text=True)
