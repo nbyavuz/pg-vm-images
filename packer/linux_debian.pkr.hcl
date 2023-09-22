@@ -147,6 +147,10 @@ build {
         ln -sf /dev/null /etc/systemd/system/krb5-admin.service
         # nvmf-autoconnect doesn't work on our own kernel, and isn't needed
         ln -sf /dev/null /etc/systemd/system/nvmf-autoconnect.service
+
+        # install grub again, otherwise grub fails with:
+        # error: file `/boot/grub/x86_64-efi/bli.mod' not found.
+        grub-install --target=x86_64-efi --efi-directory=/boot/efi
       SCRIPT
     ]
   }
