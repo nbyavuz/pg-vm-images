@@ -101,9 +101,6 @@ task:
   name: 'Building VM Image: ${IMAGE_NAME}'
   alias: vmbuild-${TASK_NAME}
   matrix:
-    - env:
-        TASK_NAME: freebsd-13
-        PACKERFILE: packer/freebsd.pkr.hcl
 
     - env:
         PACKERFILE: packer/linux_debian.pkr.hcl
@@ -121,10 +118,6 @@ task:
         - env:
             TASK_NAME: sid-newkernel-uring
 
-    - env:
-        PACKERFILE: packer/windows.pkr.hcl
-        SCRIPTS: scripts/windows*
-        TASK_NAME: windows-ci
 
   env:
     IMAGE_NAME: ${PREFIX}-${TASK_NAME}
@@ -169,88 +162,6 @@ task:
     gcloud compute images update \
       --project "$GCP_PROJECT" \
       --family ${IMAGE_NAME} \
-      ${IMAGE_NAME}-${DATE}
-
-
-task:
-  name: 'Building VM Image: ${IMAGE_NAME}'
-  alias: vmbuild-${TASK_NAME}
-
-  matrix:
-    - env:
-        PKRVARFILE: packer/openbsd.pkrvars.hcl
-        VERSION: 7-3
-      matrix:
-        - env:
-            TASK_NAME: openbsd-vanilla
-          depends_on:
-            - cleanup-leftover-running
-        - env:
-            TASK_NAME: openbsd-postgres
-          depends_on:
-            - vmbuild-openbsd-vanilla
-
-    - env:
-        PKRVARFILE: packer/netbsd.pkrvars.hcl
-        VERSION: 9-3
-
-      matrix:
-        - env:
-            TASK_NAME: netbsd-vanilla
-          depends_on:
-            - cleanup-leftover-running
-        - env:
-            TASK_NAME: netbsd-postgres
-          depends_on:
-            - vmbuild-netbsd-vanilla
-
-  env:
-    PACKERFILE: packer/netbsd_openbsd.pkr.hcl
-    IMAGE_NAME: ${PREFIX}-${TASK_NAME}
-
-  container:
-    dockerfile: docker/linux_debian_packer
-    cpu: 2
-    memory: 4G
-
-  skip: $CIRRUS_LAST_GREEN_CHANGE != '' && $CIRRUS_CRON != 'regular-rebuild' && !changesInclude('.cirrus.yml', 'docker/linux_debian_packer', 'files/bsd/*', 'scripts/bsd/*', $PACKERFILE, $PKRVARFILE)
-  auto_cancellation: false
-
-  <<: *gcp_auth_unix
-
-  info_script:
-    - packer --version
-
-  export_date_script: |
-    DATE=$(date --utc +'%Y-%m-%dt%H-%M-%S')
-    echo "DATE=${DATE}" | tee -a $CIRRUS_ENV
-
-  build_image_script: |
-    export PACKER_LOG=1
-
-    packer build \
-      -only "*.${TASK_NAME}" \
-      -timestamp-ui \
-      -force \
-      -var-file="${PKRVARFILE}" \
-      -var "version=${VERSION}" \
-      -var "image_date=$DATE" \
-      -var "image_name=${IMAGE_NAME}" \
-      -var "prefix=${PREFIX}" \
-      -var "bucket=$BUCKET" \
-      -var gcp_project=$GCP_PROJECT \
-      "$PACKERFILE"
-
-  make_image_public_script: |
-    gcloud compute images add-iam-policy-binding \
-      --project "$GCP_PROJECT" \
-      --member=allAuthenticatedUsers \
-      --role=roles/compute.imageUser \
-      ${IMAGE_NAME}-${DATE}
-
-    gcloud compute images update \
-      --project "$GCP_PROJECT" \
-      --family ${IMAGE_NAME}-${VERSION} \
       ${IMAGE_NAME}-${DATE}
 
 
@@ -328,88 +239,3 @@ task:
       .
 
     docker buildx imagetools inspect $GCP_REPO/$IMAGE:latest
-
-
-task:
-  name: 'Testing Container Image: ${IMAGE_NAME}'
-  matrix:
-    - env:
-        IMAGE_NAME: linux_debian_bullseye_ci
-    - env:
-        IMAGE_NAME: linux_debian_bookworm_ci
-  depends_on:
-    - dockerbuild-${IMAGE_NAME}
-  container:
-    image: $GCP_REPO/${IMAGE_NAME}:latest
-  test_script:
-    - uname -a
-    - xsltproc --version
-    - env
-
-# Disabled linux/arm64, fails currently due to reasons outside of our control
-# task:
-#  name: 'Testing Arm Container Image: ${IMAGE_NAME}'
-#   matrix:
-#     - env:
-#         IMAGE_NAME: linux_debian_bullseye_ci
-#     - env:
-#         IMAGE_NAME: linux_debian_bookworm_ci
-#  depends_on:
-#    - ${IMAGE_NAME}
-#  arm_container:
-#    image: $GCP_REPO/${IMAGE_NAME}:latest
-#  test_script:
-#    - uname -a
-#    - xsltproc --version
-
-
-task:
-  name: 'Testing VM Image: ${PREFIX}-${IMAGE_NAME}'
-  matrix:
-    - env:
-        IMAGE_NAME: netbsd-postgres-9-3
-        PLATFORM: netbsd
-
-    - env:
-        IMAGE_NAME: openbsd-postgres-7-2
-        PLATFORM: openbsd
-
-  depends_on:
-    - vmbuild-${PLATFORM}-postgres
-
-  compute_engine_instance:
-    image_project: $GCP_PROJECT
-    image: family/${PREFIX}-${IMAGE_NAME}
-    platform: ${PLATFORM}
-
-  test_script:
-    - uname -a
-    - env
-
-
-task:
-  name: 'Testing VM Image: ${PREFIX}-${IMAGE_NAME}'
-  env:
-    IMAGE_NAME: windows-ci
-  depends_on:
-    - vmbuild-${IMAGE_NAME}
-  compute_engine_instance:
-    image_project: $GCP_PROJECT
-    image: family/${PREFIX}-${IMAGE_NAME}
-    platform: windows
-
-  test_vs_script:
-    - ver
-    - set
-    - where perl
-    - perl --version
-    - python --version
-    - vcvarsall x64
-    - bison --version
-    - flex --version
-
-  test_mingw_script:
-    - C:\msys64\usr\bin\bash.exe -lc 'where perl'
-    - C:\msys64\usr\bin\bash.exe -lc 'perl --version'
-    - C:\msys64\usr\bin\bash.exe -lc 'bison --version'
-    - C:\msys64\usr\bin\bash.exe -lc 'flex --version'
