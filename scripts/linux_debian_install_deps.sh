@@ -151,3 +151,5 @@ export MODULE_SIGNATURE_KEYSERVER=pgpkeys.eu
  echo o conf recommends_policy 0; # don't install "recommended" modules
  echo notest install IPC::Run;
 ) | cpan
+
+cpan -D IPC::Run

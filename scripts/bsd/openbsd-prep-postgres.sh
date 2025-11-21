@@ -43,6 +43,8 @@ export MODULE_SIGNATURE_KEYSERVER=pgpkeys.eu
  echo notest install IPC::Run;
 ) | cpan
 
+cpan -D IPC::Run
+
 #####
 # Add 'noatime' and 'softdep' to the mount points
 # https://man.openbsd.org/mount.8

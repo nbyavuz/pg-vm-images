@@ -38,6 +38,8 @@ export MODULE_SIGNATURE_KEYSERVER=pgpkeys.eu
  echo notest install IPC::Run;
 ) | cpan
 
+cpan -D IPC::Run
+
 echo "alias python3=python3.12" >> ~/.bashrc
 echo "alias pip3=pip3.12" >> ~/.bashrc
 

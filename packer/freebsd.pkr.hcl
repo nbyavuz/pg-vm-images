@@ -106,6 +106,8 @@ build {
          echo notest install IPC::Run;
         ) | cpan
 
+        cpan -D IPC::Run
+
         # remove temporary files
         pkg clean -ay
         rm -fr /usr/ports /usr/src /usr/tests /usr/lib/debug
