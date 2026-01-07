@@ -254,6 +254,11 @@ task:
       --family ${IMAGE_NAME} \
       ${IMAGE_NAME}-${DATE}
 
+  always:
+    serial_log_artifacts:
+      paths:
+        - "serial.log"
+
 
 # Clean up old images regularly - after a while the individually small cost
 # starts adding up

@@ -10,6 +10,14 @@ cat > /etc/ifconfig.vioif0 << EOF
 mtu 1460
 EOF
 
+# Debug network
+for f in /etc/ifconfig*; do
+    [ -f "$f" ] || continue
+    echo "===== $f ====="
+    cat "$f"
+    echo
+done
+
 # Install curl for startup & shutdown scripts
 PKG_PATH="http://cdn.NetBSD.org/pub/pkgsrc/packages/NetBSD/$(uname -p)/$(uname -r|cut -f '1 2' -d.)/All/" && \
 export PKG_PATH && \
