@@ -52,10 +52,10 @@ boot_command = [
   "echo '/sbin/dhcpcd -4' > /etc/rc.local<enter><wait5s>",
   "reboot<enter>"
 ]
-iso_checksum = "sha256:505e4fb6de7996ad3544bd2d770d5c597f4da6a105dc6c3843395943f3d0dd6f"
+iso_checksum = "none"
 iso_urls = [
-  "NetBSD-10.1-amd64.iso",
-  "https://cdn.netbsd.org/pub/NetBSD/NetBSD-10.1/images/NetBSD-10.1-amd64.iso"
+  "NetBSD-10.1_latest-amd64.iso",
+  "https://nycdn.netbsd.org/pub/NetBSD-daily/netbsd-10/latest/images/NetBSD-10.1_STABLE-amd64.iso"
 ]
 output_file_name = "output/netbsd10-1.tar.gz"
 vanilla_name = [ { name = "netbsd-vanilla" } ]

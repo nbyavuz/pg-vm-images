@@ -19,7 +19,7 @@ for f in /etc/ifconfig*; do
 done
 
 # Install curl for startup & shutdown scripts
-PKG_PATH="http://cdn.NetBSD.org/pub/pkgsrc/packages/NetBSD/$(uname -p)/$(uname -r|cut -f '1 2' -d.)/All/" && \
+PKG_PATH="http://cdn.NetBSD.org/pub/pkgsrc/packages/NetBSD/$(uname -p)/$(uname -r | cut -f '1 2' -d. | sed 's/_.*//')/All/" && \
 export PKG_PATH && \
 pkg_add pkgin && \
 echo $PKG_PATH > /usr/pkg/etc/pkgin/repositories.conf && \
