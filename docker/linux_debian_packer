@@ -33,4 +33,7 @@ RUN \
   unzip /tmp/packer.zip -d /usr/local/bin/ && \
   rm /tmp/packer.zip && \
   chmod +x /usr/local/bin/packer && \
+  # Install required Packer plugins to generate images
+  packer plugins install github.com/hashicorp/googlecompute && \
+  packer plugins install github.com/hashicorp/qemu && \
   apt-get clean && rm -rf /var/lib/apt/lists/*
