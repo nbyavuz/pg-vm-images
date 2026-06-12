@@ -14,28 +14,25 @@ jobs:
 
     env:
       MSYS2_PATH_TYPE: inherit
+      RELEASE_TAG: test-release-2026-06-12_01
 
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 128
 
-      - name: 'map M:/'
+      - name: 'create RAM disk R:'
         shell: cmd
         run: |
-          echo "mkdir 1"
-          mkdir "%RUNNER_TEMP%/pg-mingw-install" || true
-          #echo "mkdir 2"
-          #mkdir "C:/pg-msys/" || true
-          echo "mklink"
-          mklink /d "C:/pg-msys/" "%RUNNER_TEMP%/pg-mingw-install"
+          choco install -y imdisk-toolkit --no-progress --params "/NoStartMenuShortcuts /NoDesktopShortcut"
+          imdisk -a -s 2G -m R: -p "/fs:ntfs /q /y"
 
       - name: Install MSYS2
         uses: msys2/setup-msys2@v2.31.1
         with:
           msystem: UCRT64
           update: true
-          location: 'C:/pg-msys/'
+          location: 'R:/'
           install: >-
             bison flex
             mingw-w64-ucrt-x86_64-ccache
@@ -66,7 +63,7 @@ jobs:
       - name: Compress Full
         shell: msys2 {0}
         run: |
-          cd /c/pg-msys/
+          cd /r/
           tar -cf - msys64 | zstd -f -T0 -10 - -o "${{github.workspace}}/msys64-full.tar.zst"
 
       - name: Upload msys64-full.tar.zst
@@ -85,13 +82,15 @@ jobs:
           set -x
           pwd
           ls -la
-          gh release delete-asset -y test-release-2026-06-11_01 msys64-full.tar.zst
-          gh release upload test-release-2026-06-11_01 msys64-full.tar.zst
+          gh release view "$RELEASE_TAG" >/dev/null 2>&1 || \
+            gh release create "$RELEASE_TAG" --title "$RELEASE_TAG" --notes "automated test release"
+          gh release delete-asset -y "$RELEASE_TAG" msys64-full.tar.zst || true
+          gh release upload "$RELEASE_TAG" msys64-full.tar.zst
 
       - name: Minimize
         shell: msys2 {0}
         run: |
-          cd /c/pg-msys/
+          cd /r/
           du -sh msys64
           find msys64/{usr,ucrt64}/share/{man,doc} -type f -exec rm '{}' +
           du -sh msys64
@@ -113,7 +112,7 @@ jobs:
       - name: Compress Min
         shell: msys2 {0}
         run: |
-          cd /c/pg-msys/
+          cd /r/
           tar -cf - msys64 | zstd -f -T0 -10 - -o "${{github.workspace}}/msys64.tar.zst"
 
       - name: Upload Min
@@ -129,5 +128,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release delete-asset -y test-release-2026-06-11_01 msys64.tar.zst
-          gh release upload test-release-2026-06-11_01 msys64.tar.zst
+          gh release view "$RELEASE_TAG" >/dev/null 2>&1 || \
+            gh release create "$RELEASE_TAG" --title "$RELEASE_TAG" --notes "automated test release"
+          gh release delete-asset -y "$RELEASE_TAG" msys64.tar.zst || true
+          gh release upload "$RELEASE_TAG" msys64.tar.zst
