@@ -14,18 +14,16 @@ Options:
   --install-base    Install minimal-ish build requirements
   --install-normal  Install dependencies for all dependencies and tests
   --install-win     Install windows components
-  --install-32      Install 32bit components
   --install-doc     Install documentation
   -h, --help        Show this help and exit
 EOF
 }
 
-opts=$(getopt -o '' -l help,install-base,install-normal,install-32,install-win,install-doc -- "$@") || exit 1
+opts=$(getopt -o '' -l help,install-base,install-normal,install-win,install-doc -- "$@") || exit 1
 eval set -- "$opts"
 
 install_base=false
 install_normal=false
-install_32=false
 install_win=false
 install_doc=false
 
@@ -33,7 +31,6 @@ while true; do
   case "$1" in
     --install-base)  install_base=true; shift ;;
     --install-normal) install_normal=true; shift ;;
-    --install-32) install_32=true; shift ;;
     --install-win) install_win=true; shift ;;
     --install-doc)   install_doc=true; shift ;;
     --) shift; break ;;
@@ -185,41 +182,6 @@ if "$install_win"; then
             gcc-mingw-w64-ucrt64
         )
     fi
-fi
-
-if "$install_32" && [ $(dpkg --print-architecture) = "amd64" ] ; then
-
-  # Install development packages necessary to target i386 from amd64. Leave
-  # out packages that'd enlarge the image unduly (e.g. llvm-dev).
-  #
-  # Not installing libossp-uuid-dev:i386, systemtap-sdt-dev:i386
-  # they conflict with the amd64 variants
-  dpkg --add-architecture i386
-  apt-get update
-
-  packages+=(
-      gcc-multilib
-
-      libcurl4-openssl-dev:i386
-      libicu-dev:i386
-      libkrb5-*-heimdal:i386
-      libkrb5-dev:i386
-      libldap2-dev:i386
-      liblz4-dev:i386
-      libpam-dev:i386
-      libperl-dev:i386
-      libpython3-dev:i386
-      libreadline-dev:i386
-      libselinux-dev:i386
-      libssl-dev:i386
-      libsystemd-dev:i386
-      liburing-dev:i386
-      libxml2-dev:i386
-      libxslt1-dev:i386
-      libzstd-dev:i386
-      tcl-dev:i386
-      uuid-dev:i386
-  )
 fi
 
 if "$install_doc"; then
