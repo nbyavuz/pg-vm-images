@@ -72,7 +72,7 @@ FROM base AS sanity-check
 # The base/normal steps are repeated here rather than shared with the amd64
 # stages above, because a stage's FROM cannot be varied per --target within a
 # single build.
-FROM i386/debian:$DEBIAN_RELEASE AS base-32
+FROM --platform=linux/386 i386/debian:$DEBIAN_RELEASE AS base-32
 
 LABEL \
   org.opencontainers.image.source="https://github.com/anarazel/pg-vm-images" \
