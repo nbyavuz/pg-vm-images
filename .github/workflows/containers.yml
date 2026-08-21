@@ -200,8 +200,14 @@ jobs:
 
 
       # Backward compat aliases for the current CI name
+      #
+      # This used to be aliased from linux-meson-32, which back then was an
+      # amd64 image that just additionally had the packages for cross building
+      # to i386, i.e. a superset of the normal image. Now that linux-meson-32
+      # is a native i386 image it can't serve that purpose anymore, so alias
+      # the plain 64bit image instead.
       - name: Alias ${{matrix.debian_release}} ${{matrix.variant}} as as ci
-        if: ${{ matrix.variant == 'linux-meson-32' }}
+        if: ${{ matrix.variant == 'linux-meson-64' }}
         run: |
           set -x
           podman tag \

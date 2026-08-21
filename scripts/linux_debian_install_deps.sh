@@ -15,17 +15,21 @@ Options:
   --install-normal  Install dependencies for all dependencies and tests
   --install-win     Install windows components
   --install-doc     Install documentation
+  --install-64bit-runtime
+                    Install the 64bit runtime libraries, for running 64bit
+                    binaries on a 32bit image
   -h, --help        Show this help and exit
 EOF
 }
 
-opts=$(getopt -o '' -l help,install-base,install-normal,install-win,install-doc -- "$@") || exit 1
+opts=$(getopt -o '' -l help,install-base,install-normal,install-win,install-doc,install-64bit-runtime -- "$@") || exit 1
 eval set -- "$opts"
 
 install_base=false
 install_normal=false
 install_win=false
 install_doc=false
+install_64bit_runtime=false
 
 while true; do
   case "$1" in
@@ -33,6 +37,7 @@ while true; do
     --install-normal) install_normal=true; shift ;;
     --install-win) install_win=true; shift ;;
     --install-doc)   install_doc=true; shift ;;
+    --install-64bit-runtime) install_64bit_runtime=true; shift ;;
     --) shift; break ;;
     *)
         echo "Error: unexpected option: $1" >&2
@@ -196,6 +201,22 @@ if "$install_doc"; then
     )
 fi
 
+if "$install_64bit_runtime"; then
+    # Even in a 32bit image the GitHub Actions runner mounts its own, 64bit,
+    # nodejs into the container (as /__e/node*/bin/node) and uses it to run
+    # javascript actions like actions/checkout. Without the 64bit runtime
+    # libraries that fails with a rather unhelpful
+    #   exec /__e/node24/bin/node: no such file or directory
+    # The kernel is 64bit either way, so all that's needed are the libraries,
+    # no emulation is involved. These are the biarch packages from the i386
+    # archive, so this doesn't require enabling a foreign dpkg architecture.
+    packages+=(
+        lib64gcc-s1
+        lib64stdc++6
+        libc6-amd64
+    )
+fi
+
 echo "Updating package metadata"
 apt-get -y update
 
@@ -208,6 +229,16 @@ fi
 echo "Installing ${packages[@]}"
 
 apt-get -y install --no-install-recommends "${packages[@]}"
+
+if "$install_64bit_runtime"; then
+    # The 64bit ELF interpreter path is hardcoded in every 64bit binary as
+    # /lib64/ld-linux-x86-64.so.2, but on i386 /lib64 doesn't exist and the
+    # packages above install into /usr/lib64. Add the symlink that a 64bit
+    # Debian has, otherwise the loader isn't found and binaries fail to exec.
+    if [ ! -e /lib64 ]; then
+        ln -s usr/lib64 /lib64
+    fi
+fi
 
 
 echo "packages installed, performing some rude cleanup"

@@ -102,7 +102,7 @@ RUN \
   MODULE_SIGNATURE_KEYSERVERPORT=80 /scripts/update_ipc_run.sh && \
   \
   /scripts/linux_debian_install_deps.sh \
-    --install-normal
+    --install-normal --install-64bit-runtime
 
 
 # Image for the linux-meson-64 job
